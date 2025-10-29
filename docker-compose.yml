@@ -2,9 +2,9 @@ version: "3.8"
 
 services:
   db:
-    build:                         # 👈 this tells Docker to build using a Dockerfile
-      context: .                   # 👈 must be a string (the dot means "current folder")
-      dockerfile: Dockerfile.db    # 👈 your custom SQL Server Dockerfile
+    build:                         
+      context: .                   
+      dockerfile: Dockerfile.db    
     container_name: deviceproject_db
     environment:
       - ACCEPT_EULA=Y
@@ -83,10 +83,7 @@ services:
         condition: service_healthy
     networks:
       - device-net
-    # NOTE: this doesn't start automatically. Run it manually when needed:
-    # docker-compose run migrate
-    # ---------------------------------------------------------------
-
+   
 volumes:
   mssql-data:
 
