@@ -1,0 +1,13 @@
+# Root .dockerignore
+**/bin
+**/obj
+**/node_modules
+**/.git
+**/.vs
+**/*.user
+**/*.suo
+.vscode
+*.log
+.env
+docker-compose*.yml
+.DS_Store

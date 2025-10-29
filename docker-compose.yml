@@ -1,0 +1,95 @@
+version: "3.8"
+
+services:
+  db:
+    build:                         # 👈 this tells Docker to build using a Dockerfile
+      context: .                   # 👈 must be a string (the dot means "current folder")
+      dockerfile: Dockerfile.db    # 👈 your custom SQL Server Dockerfile
+    container_name: deviceproject_db
+    environment:
+      - ACCEPT_EULA=Y
+      - SA_PASSWORD=${MSSQL_SA_PASSWORD}
+    ports:
+      - "14333:1433"
+    volumes:
+      - mssql-data:/var/opt/mssql
+    healthcheck:
+      test: ["CMD", "/opt/mssql-tools/bin/sqlcmd", "-S", "localhost", "-U", "sa", "-P", "Sakshi@123", "-Q", "SELECT 1"]
+      interval: 20s
+      timeout: 10s
+      retries: 10
+      start_period: 40s
+    networks:
+      - device-net
+
+
+  # ---------------------- BACKEND ----------------------
+  backend:
+    build:
+      context: ./src/DeviceManagementSolution
+      dockerfile: Devicemanagement/Dockerfile
+    image: deviceproject-backend:dev
+    container_name: deviceproject_backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      - JWT__Secret=${JWT_SECRET}
+      - JWT__ValidIssuer=${JWT_ISSUER}
+      - JWT__ValidAudience=${JWT_AUDIENCE}
+    ports:
+      - "5000:5000"
+    networks:
+      - device-net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # ---------------------- FRONTEND ----------------------
+  frontend:
+    build:
+      context: ./web/devicefront
+      dockerfile: Dockerfile
+      args:
+        REACT_APP_API_BASE_URL: ${REACT_APP_API_BASE_URL}
+    image: deviceproject-frontend:dev
+    container_name: deviceproject_frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    networks:
+      - device-net
+
+  # ---------------------- EF MIGRATION RUNNER ----------------------
+  migrate:
+    image: mcr.microsoft.com/dotnet/sdk:7.0
+    entrypoint: [ "bash", "-c" ]
+    command: >
+      "cd /src/DeviceManagementSolution/Devicemanagement &&
+       dotnet tool restore || true &&
+       dotnet ef database update --no-build"
+    volumes:
+      - ./src:/src:cached
+    environment:
+      - ConnectionStrings__DefaultConnection=${CONNECTION_STRING}
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - device-net
+    # NOTE: this doesn't start automatically. Run it manually when needed:
+    # docker-compose run migrate
+    # ---------------------------------------------------------------
+
+volumes:
+  mssql-data:
+
+networks:
+  device-net:
+    driver: bridge
