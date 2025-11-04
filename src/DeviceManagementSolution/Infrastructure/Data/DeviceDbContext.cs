@@ -15,6 +15,8 @@ namespace Infrastructure.Data
         public DbSet<UserNotification> UserNotifications { get; set; }
         public DbSet<DeviceStatsDummy> DeviceStatsDummy { get; set; }
 
+        public DbSet<ModbusConfiguration> ModbusConfigurations { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             // Soft delete filter
@@ -33,6 +35,13 @@ namespace Infrastructure.Data
                 .IsUnique();
 
             modelBuilder.Entity<DeviceStatsDummy>().ToTable("DeviceStatsDummy");
+
+            // Device -> ModbusConfiguration (1:1)
+            modelBuilder.Entity<Device>()
+                .HasOne(d => d.ModbusConfiguration)
+                .WithOne(mc => mc.Device)
+                .HasForeignKey<ModbusConfiguration>(mc => mc.DeviceId)
+                .OnDelete(DeleteBehavior.Cascade);
 
 
             base.OnModelCreating(modelBuilder);
